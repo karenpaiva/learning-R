@@ -1,0 +1,119 @@
+#Novo script de R
+#Karen Paiva
+#3 de dezembro de 2020
+#O intuito é aprender a manejar dados de sequenciamentos 
+library(ggplot2)
+library(reshape2)
+library(seqinr)
+library(ape)
+library(rentrez)
+library(Peptides)
+#SEgue algumas estruturas de dado em R
+#Vetor ou array é uma simples estrutura de lista
+primes <- c(1, 3, 5, 7, 11)
+#O c é importante para concatenar os dados que tambem podem ser texto ou bollanos
+Names <- c('Bob', 'Ted', 'Carol', 'Alice') 
+Truth <- c(TRUE, FALSE, TRUE)
+#Data frame é outra estrutura que é uma tabela com linhas e colunas
+organism <- c('Human', 'Chimpanzee', 'Yeast')
+chromosomes <- c(23, 24, 16)
+multicellular <- c(TRUE, TRUE, FALSE)
+OrganismTable <- data.frame(organism, chromosomes, multicellular)
+#Para criar um arquivo csv a partir do data frame sem o nome das linhas ou colunas é quando estiver vazio ele coloca na e os itenssão separados por ,
+write.table(OrganismTable, file = "Newfile.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
+#Para ler um arquivo csv é só usar o comando read.csv 
+NewDataFrame <- read.csv("Newfile.csv", header=FALSE, sep=",")
+#Em uma estutura de dados caso se deseje saber quais atendem os pré-requisitos é possível usar o if para a consição desejada
+#O count vai adicional cada vez que os requisitos forem atendidos
+count<-0
+if(OrganismTable$chromosomes[1] > 20) count=count+1
+if(OrganismTable$chromosomes[2] > 20) count=count+1
+if(OrganismTable$chromosomes[3] > 20) count=count+1
+#Para simplificar essa estrutura é possível usar a função for, que irá checar de um e um cada um dos dados determinados
+count<-0
+for (val in OrganismTable$chromosomes){if (val>20)count=count+1}
+print(count)
+#o for é a função, o ()é onde essa função vai analizar os dados, e o {} é a condição
+#para plotar dados
+barplot(OrganismTable$chromosomes) 
+rawdata <- Week_1_Plotdata
+#para plotar um scatter plot onde aes são os vetores e os geom_point inicam que são pontos a serem colocados não linhas
+ggplot(rawdata, aes(x=Subject, y=a)) + geom_point()
+#para reestruturar os dados é possívelusar a função melt indica qual coluna é a ID para os dados,e a measure.vars diz quais são as variaveis medidas que são encontradas nas colunas a, c, d, e, f, g, j, e k 
+melted = melt(rawdata, id.vars ="Subject", measure.vars = c("a","c","d","e","f","g","j","k"))
+#com os grupos reestruturados usa-se o melted para a nova analise
+#a variavel col indica que os grupos diferentes do subject devem ser sinalizados de cores fierentes
+# e o grupo que é setado como o da princical analise é o group
+myPlot <- ggplot(melted, aes(x=variable, y=value, col=Subject, group=Subject)) + geom_point() + geom_line() + xlab('Variável') + ylab('Valor') +ggtitle('Título do gráfico')
+myPlot
+#Esse arquivo pode não estar disponível
+cox1<-read.fasta(file = 'cox1.fasta',seqtype = 'AA')
+#para saber quantas sequencias tem usa-se o lenght
+length(cox1)
+seq1<-cox1[1]
+#Para baixar uma sequencia direto do genebank 
+AB003468 <- read.GenBank("AB003468", as.character = "TRUE")
+#Ele é baixado na forma binária, é preciso transformar em fasta transformar em fasta 
+write.dna(AB003468, file ="AB003468.fasta", format = "fasta", append = FALSE, nbcol = 6, colsep = " ", colw = 10)
+#Para sequencias sem ser por accession number da pra usar o entrez
+entrez_search(db="nucleotide", term="human superoxide dismutase")
+#Para ter uma lista apenas com as sequâncias
+clonevector<-AB003468[[1]]
+#Para saber quanto de cada par de base há na sequencia como é 1 nucleotídeo se coloca o 1 na frente do objeto da analise
+nucleotideos<-count(clonevector,1)
+nucleotideos
+#Se forem dinucleotídeos 
+dinucleotideos<-count(clonevector,2)
+dinucleotideos
+#Para saber se há muitas regiões com GC que são regiões com apenas dupla ligação entre as bases 
+GC<-GC(clonevector)
+#Disponibiliza o ratio entre GC e AT 
+GC
+#Há mais ligacoes GC do que AT
+#Para não calcular de uma forma geral, é possível calcular o GC por janelas da sequência
+#Para separar essas janelas é usado, e elas seram de 200 bases
+GCwindow <- seq(1, length(clonevector)-200, by = 200)
+#Primeiro precisamos sabem quantas janelas foram criada 
+n <- length(GCwindow)
+n
+#Então criamos um vetor com espaços em brancos para que cada valor de GC possa ser incluido
+Chunks <- numeric(n)
+#Criamos um loop para computar GC tem por pedaço
+for (i in 1:n) { 
+  chunk <- clonevector[GCwindow[i]:(GCwindow[i]+199)]
+  chunkGC <- GC(chunk)
+  print(chunkGC)
+  Chunks[i] <- chunkGC
+}
+plot(GCwindow,Chunks,type="b",xlab="Nucleotide start position",ylab="GC content")  
+#Para criar uma função customisada de plotagem de GC por janela
+#Primeiro criamos a função a nomeando
+slidingwindowGCplot <- function(windowsize,inputseq)
+{
+  GCwindow <- seq(1, length(inputseq)-windowsize, by = windowsize)
+  #Descobre o tamanho da sequência
+  n <- length(GCwindow)
+  #Cria um vetor do mesmo tamanho em branco
+  Chunks <- numeric(n)
+  #Mota-se o loop
+  for (i in 1:n) {
+    chunk <- inputseq[GCwindow[i]:(GCwindow[i]+windowsize-1)]
+    chunkGC <- GC(chunk)   
+    print(chunkGC)   
+    Chunks[i] <- chunkGC  }
+  plot(GCwindow,Chunks,type="b",xlab="Nucleotide start position",ylab="GC content",main=paste("GC Plot with windowsize ", windowsize)) 
+}
+#As funções ficam gravadas no script
+slidingwindowGCplot(50,clonevector)
+#Trabalhar com amino ácidos usa-se mais frequentemente o pacote peptides
+#Essa função indica a composição dos amino -acidos da sequencia 
+#O arquivo cox1 pode nao estar disponível
+aaComp(cox1[1])
+#Para saber a termoinstabilidade globular das proteinas de cada sequencia 
+aIndex(cox1)
+#Para prever a carga de cada proteina 
+charge(cox1)
+#Para sequencia mais especificas 
+charge(seq="FLPVLAG", pH=7, pKscale="EMBOSS")
+#Para saber a hidrofobicidade
+hydrophobicity(cox1[1])
